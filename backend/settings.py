@@ -133,9 +133,9 @@ STORAGES = {
     },
 }
 
-CORS_ALLOWED_ORIGINS = ["https://harvest-ledger.onrender.com", "http://localhost:8080"]
+CORS_ALLOWED_ORIGINS = ["https://peaceful-farms.onrender.com", "http://localhost:8080"]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = ["https://harvest-ledger.onrender.com", "http://localhost:8080"]
+CSRF_TRUSTED_ORIGINS = ["https://peaceful-farms.onrender.com", "http://localhost:8080"]
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
