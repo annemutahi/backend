@@ -119,6 +119,7 @@ USE_TZ = True
 
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:8080"]
 CORS_ALLOW_CREDENTIALS = True
