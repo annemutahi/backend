@@ -79,7 +79,6 @@ class SaleSerializer(serializers.ModelSerializer):
             total += item["quantity"] * unit_price
         sale.total_amount = total
         sale.save(update_fields=["total_amount"])
-        # Auto-generate invoice
         Invoice.objects.create(
             invoice_number=f"INV-{uuid.uuid4().hex[:8].upper()}",
             customer=sale.customer,
@@ -94,6 +93,8 @@ class SaleSerializer(serializers.ModelSerializer):
 class InvoiceSerializer(serializers.ModelSerializer):
     outstanding_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+    items = SaleItemSerializer(source="sale.items", many=True, read_only=True)
+
     class Meta:
         model = Invoice
         fields = "__all__"
@@ -150,6 +151,7 @@ class LandingSummarySerializer(serializers.Serializer):
     monthly_sales = MonthlySalesSerializer()
     cards = LandingSummaryCardsSerializer()
     payments_due_soon_invoices = LandingSummaryInvoiceSerializer(many=True)
+    
 
 class ProfileSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)

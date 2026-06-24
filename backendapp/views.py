@@ -2,7 +2,7 @@ from rest_framework import filters, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from .models import Customer, Product, Sale, Invoice, Payment
+from .models import Customer, Product, Sale, Invoice, Payment, SaleAuditLog
 from .serializers import (
     CustomerSerializer, ProductSerializer, SaleSerializer,
     InvoiceSerializer, PaymentSerializer, TransactionSerializer,
@@ -14,11 +14,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Sum, Count, F, DecimalField
 from django.utils import timezone
 from datetime import timedelta
+from .permissions import CanEditSales
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def csrf(request):
-    get_token(request)  # sets csrftoken cookie
+    get_token(request)
     return Response({"detail": "ok"})
 
 @api_view(["POST"])
@@ -46,8 +47,10 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def me(request):
     u = request.user
-    return Response({"id": u.id, "username": u.username, "email": u.email})
-
+    return Response({
+        "id": u.id, "username": u.username, "email": u.email, 
+        "is_staff": u.is_staff, "is_superuser": u.is_superuser,
+    })
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.prefetch_related("invoices", "sales").order_by("name")
@@ -63,10 +66,15 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.select_related("customer").prefetch_related("items__product").order_by("-sale_date")
+    # serializer_class = SaleSerializer
+    # class SaleViewSet(viewsets.ModelViewSet):
+    # queryset = Sale.objects.all()
     serializer_class = SaleSerializer
+    permission_classes = [CanEditSales]
+    http_method_names = ["get", "post", "put", "patch", "delete"]
 
 class InvoiceViewSet(viewsets.ModelViewSet):
-    queryset = Invoice.objects.select_related("customer").prefetch_related("payments").order_by("-issue_date")
+    queryset = Invoice.objects.select_related("customer", "sale").prefetch_related("sale__items__product", "payments").order_by("-issue_date")
     serializer_class = InvoiceSerializer
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -312,3 +320,18 @@ def change_password(request):
     user.set_password(new_password)
     user.save()
     return Response({"detail": "Password updated."})
+
+def perform_update(self, serializer):
+    before = SaleSerializer(serializer.instance).data
+    sale = serializer.save()
+    SaleAuditLog.objects.create(
+        sale=sale, user=self.request.user, action="updated",
+        before=before, after=SaleSerializer(sale).data,
+    )
+
+def perform_destroy(self, instance):
+    before = SaleSerializer(instance).data
+    SaleAuditLog.objects.create(
+        sale=None, user=self.request.user, action="deleted", before=before,
+    )
+    instance.delete()

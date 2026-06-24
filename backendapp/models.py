@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 import uuid
+from django.conf import settings
 class Customer(models.Model):
     INDIVIDUAL = "individual"
     CORPORATE = "corporate"
@@ -18,7 +19,6 @@ class Customer(models.Model):
     def outstanding_balance(self):
         return sum((inv.outstanding_balance for inv in self.invoices.all()), 0)
 class Product(models.Model):
-    # Keep a list of common categories for suggestions, but allow free-form categories
     COMMON_CATEGORY_CHOICES = [
         ("whole_chicken", "Whole Chicken"),
         ("cuts", "Cuts"),
@@ -111,3 +111,12 @@ class Payment(models.Model):
         inv.amount_paid = sum(p.amount for p in inv.payments.all())
         inv.save(update_fields=["amount_paid"])
         inv.refresh_status()
+
+
+class SaleAuditLog(models.Model):
+    sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, null=True, related_name="audit_logs")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=20)
+    before = models.JSONField()
+    after = models.JSONField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
